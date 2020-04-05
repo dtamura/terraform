@@ -40,7 +40,7 @@ module "vpc01" {
   subnets = [
     {
       subnet_name               = "subnet-01"
-      subnet_ip                 = "10.1.0.0/16"
+      subnet_ip                 = var.subnets_cidrs[0]
       subnet_region             = "asia-northeast1"
       subnet_private_access     = "true"
       subnet_flow_logs          = "true"
@@ -51,7 +51,7 @@ module "vpc01" {
     {
       subnet_name               = "subnet-02"
       description               = "This subnet has a description"
-      subnet_ip                 = "10.2.0.0/16"
+      subnet_ip                 = var.subnets_cidrs[1]
       subnet_region             = "asia-northeast2"
       subnet_flow_logs          = "true"
       subnet_flow_logs_interval = "INTERVAL_10_MIN"
@@ -64,11 +64,11 @@ module "vpc01" {
     subnet-01 = [
       {
         range_name    = "subnet-01-secondary-01"
-        ip_cidr_range = "172.16.0.0/16"
+        ip_cidr_range = var.subnet01_secondary_ranges[0]
       },
       {
         range_name    = "subnet-01-secondary-02"
-        ip_cidr_range = "172.17.0.0/16"
+        ip_cidr_range = var.subnet01_secondary_ranges[1]
       },
     ]
 
@@ -106,4 +106,24 @@ resource "google_compute_firewall" "vpc01_allow_from_client" {
     protocol = "icmp"
   }
 
+}
+
+
+resource "google_compute_router" "nat_router" {
+  name    = "my-nat-router"
+  region  = var.region
+  network = module.vpc01.network_name
+}
+
+resource "google_compute_router_nat" "nat" {
+  name                               = "my-nat-config"
+  router                             = google_compute_router.nat_router.name
+  region                             = google_compute_router.nat_router.region
+  nat_ip_allocate_option             = "AUTO_ONLY"
+  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+
+  log_config {
+    enable = true
+    filter = "ERRORS_ONLY"
+  }
 }
